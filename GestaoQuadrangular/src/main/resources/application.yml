@@ -1,0 +1,48 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/gestao_quadrangular
+    username: wash
+    password: 2503
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: washingtonjesus.santos@ucsal.edu.br
+    password: dqazqdgg ebhwippf  # App Password do Gmail
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+        debug: true
+
+# JWT
+jwt:
+  secret: H9p8vNz4qR7tYQeXw2FkLmZ3sP8bCgTjV6dBkQwXvGm8HsJr8yTnXfZwHqP6cDyF
+  expiration: 86400000
+
+# Porta do servidor (corrigido — estava com indentação errada)
+server:
+  port: 8080
+
+# Logging para debug (muito útil agora)
+logging:
+  level:
+    org.springframework.mail: DEBUG
+    com.igreja.GestaoQuadrangular: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE

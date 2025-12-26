@@ -1,0 +1,27 @@
+version: '3.9'
+
+services:
+  # Banco de Dados para GestaoQuadrangular
+  db:
+    image: postgres:15-alpine
+    container_name: gestao_db
+    restart: always
+    environment:
+      POSTGRES_DB: gestao_quadrangular
+      POSTGRES_USER: wash
+      POSTGRES_PASSWORD: 2503
+    volumes:
+      - gestao_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432" # Porta padrão para facilitar o uso na sua aplicação
+
+  # Redis para seu projeto
+  redis:
+    image: redis:7-alpine
+    container_name: gestao_redis
+    restart: always
+    ports:
+      - "6379:6379"
+
+volumes:
+  gestao_data:
