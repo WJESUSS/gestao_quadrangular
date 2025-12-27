@@ -4,6 +4,7 @@ import com.igreja.GestaoQuadrangular.application.dto.MembroAptoVotacaoDTO;
 import com.igreja.GestaoQuadrangular.domain.entity.Membro;
 import com.igreja.GestaoQuadrangular.domain.repository.MembroRepository;
 
+import com.igreja.GestaoQuadrangular.num.EscadaSucesso;
 import com.igreja.GestaoQuadrangular.servicce.EscolaBiblicaService;
 import com.igreja.GestaoQuadrangular.servicce.MembroService;
 import com.igreja.GestaoQuadrangular.servicce.VisitanteService;
@@ -13,9 +14,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
+@CrossOrigin(origins = "http://localhost:5173")
 @RequestMapping("/membros")
 @PreAuthorize("isAuthenticated()") // Todos precisam estar logados
 public class MembroController {
@@ -50,17 +53,23 @@ public class MembroController {
 
     @GetMapping("/aptos-votacao")
     public ResponseEntity<List<MembroAptoVotacaoDTO>> listarAptosVotacao() {
-        List<Membro> membros = membroRepository.findAptosParaVotacao();
+        LocalDate dataLimiteIdade = LocalDate.now().minusYears(16); // exemplo: só maiores de 16 anos
+        int maxFaltas = 3; // exemplo
+        EscadaSucesso etapaMinima = EscadaSucesso.GANHAR; // exemplo
+
+        List<Membro> membros = membroRepository.findMembrosAptosParaVotar(dataLimiteIdade, maxFaltas, etapaMinima);
+
         List<MembroAptoVotacaoDTO> dtos = membros.stream()
                 .map(m -> new MembroAptoVotacaoDTO(
                         m.getId(),
                         m.getNome(),
                         m.getStatusEspiritualColor(),
-                        m.isAptoParaVotar() // usando o método da entidade
+                        m.isAptoParaVotar()
                 ))
                 .toList();
         return ResponseEntity.ok(dtos);
     }
+
 
     @GetMapping("/aniversariantes/semana")
     public ResponseEntity<List<Membro>> aniversariantesSemana() {

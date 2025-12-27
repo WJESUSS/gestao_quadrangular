@@ -146,16 +146,22 @@ public class PresencaService {
         List<Presenca> presencas = presencaRepository.findByTipoReuniaoAndData(tipoReuniao, data);
 
         return presencas.stream()
-                .map(p -> new PresencaResponseDTO(
-                        p.getMembro().getId(),
-                        p.getMembro().getNome(),
-                        p.getMembro().getTelefone(),
-                        p.isPresente()
-                ))
+                .map(p -> {
+                    Membro membro = p.getMembro();
+                    // Pega o ID da célula com segurança (evita NullPointerException)
+                    Long idDaCelula = (membro.getCelula() != null) ? membro.getCelula().getId() : null;
+
+                    return new PresencaResponseDTO(
+                            membro.getId(),
+                            idDaCelula,      // AGORA PASSAMOS O ID PARA O FRONTEND
+                            membro.getNome(),
+                            membro.getTelefone(),
+                            p.isPresente()
+                    );
+                })
                 .sorted((a, b) -> a.nomeMembro().compareToIgnoreCase(b.nomeMembro()))
                 .toList();
     }
-
     @Transactional
     public void registrarPresencaCelula(LocalDate data, List<Long> presentesIds, Celula celula) {
 

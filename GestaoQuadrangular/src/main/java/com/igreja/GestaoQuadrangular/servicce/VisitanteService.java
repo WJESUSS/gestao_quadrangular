@@ -28,7 +28,7 @@ public class VisitanteService {
     private final UsuarioRepository usuarioRepository;
 
     // =========================
-    // CADASTRO DE VISITANTE
+    // CADASTRAR VISITANTE
     // =========================
     public Visitante cadastrarVisitante(
             String nome,
@@ -39,13 +39,23 @@ public class VisitanteService {
             String origem,
             String evento
     ) {
+        if (nome == null || nome.isBlank()) {
+            throw new RuntimeException("Nome é obrigatório");
+        }
+
+        if (celulaId == null) {
+            throw new RuntimeException("Célula é obrigatória");
+        }
+
         Celula celula = celulaRepository.findById(celulaId)
                 .orElseThrow(() -> new RuntimeException("Célula não encontrada"));
 
-        Usuario usuario = usuarioRepository.findById(usuarioId)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        Usuario usuario = null;
+        if (usuarioId != null) {
+            usuario = usuarioRepository.findById(usuarioId)
+                    .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        }
 
-        // Evita duplicidade simples
         visitanteRepository
                 .findFirstByNomeIgnoreCaseAndTelefone(nome, telefone)
                 .ifPresent(v -> {
@@ -70,7 +80,7 @@ public class VisitanteService {
     }
 
     // =========================
-    // MARCAR NOVA VISITA
+    // NOVA VISITA
     // =========================
     public void registrarNovaVisita(Long visitanteId) {
         Visitante visitante = visitanteRepository.findById(visitanteId)
@@ -81,8 +91,6 @@ public class VisitanteService {
         if (visitante.getVisitasCount() > 1) {
             visitante.setStatus(Visitante.StatusVisitante.RECORRENTE);
         }
-
-        visitanteRepository.save(visitante);
     }
 
     // =========================
@@ -101,7 +109,7 @@ public class VisitanteService {
                 .telefone(visitante.getTelefone())
                 .email(visitante.getEmail())
                 .celula(visitante.getCelula())
-                .dataEntradaCelula(LocalDate.now())  // ou outro campo equivalente
+                .dataEntradaCelula(LocalDate.now())
                 .ativo(true)
                 .build();
 
@@ -110,9 +118,26 @@ public class VisitanteService {
         visitante.setStatus(Visitante.StatusVisitante.CONVERTIDO);
         visitante.setConvertidoParaMembro(membro);
 
-        visitanteRepository.save(visitante);
-
         return membro;
+    }
+
+    // =========================
+    // LISTAGENS
+    // =========================
+    @Transactional(readOnly = true)
+    public List<VisitanteResponseDTO> listarTodos() {
+        return visitanteRepository.findAll()
+                .stream()
+                .map(VisitanteResponseDTO::fromEntity)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<VisitanteResponseDTO> listarPorCelula(Long celulaId) {
+        return visitanteRepository.findByCelulaId(celulaId)
+                .stream()
+                .map(VisitanteResponseDTO::fromEntity)
+                .toList();
     }
 
     // =========================
@@ -125,26 +150,4 @@ public class VisitanteService {
     public long totalConvertidos() {
         return visitanteRepository.findByStatus(Visitante.StatusVisitante.CONVERTIDO).size();
     }
-    public VisitanteResponseDTO toDTO(Visitante v) {
-        return new VisitanteResponseDTO(
-                v.getId(),
-                v.getNome(),
-                v.getTelefone(),
-                v.getEmail(),
-                v.getDataPrimeiraVisita(),
-                v.getVisitasCount(),
-                v.getStatus().name(),
-                v.getCelula().getId(),
-                v.getCelula().getNome()
-        );
-    }
-    @Transactional(readOnly = true)
-    public List<VisitanteResponseDTO> listarTodos() {
-        return visitanteRepository.findAll()
-                .stream()
-                .map(VisitanteResponseDTO::fromEntity)
-                .toList();
-    }
-
-
 }

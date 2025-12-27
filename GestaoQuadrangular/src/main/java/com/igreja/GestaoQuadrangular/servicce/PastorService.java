@@ -19,15 +19,23 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class PastorService {
 
+
+    private final RelatorioRepository relatorioRepository;
+    private final VisitanteRepository visitanteRepository;
+    private final RelatorioSemanalRepository relatorioSemanalRepository;
     private final PastorRepository pastorRepository;
     private final UsuarioRepository usuarioRepository;
     private final MembroRepository membroRepository;
@@ -36,12 +44,15 @@ public class PastorService {
     private final PasswordEncoder passwordEncoder;
 
     public PastorService(
-            PastorRepository pastorRepository, UsuarioRepository usuarioRepository,
+            RelatorioRepository relatorioRepository, VisitanteRepository visitanteRepository, RelatorioSemanalRepository relatorioSemanalRepository, PastorRepository pastorRepository, UsuarioRepository usuarioRepository,
             MembroRepository membroRepository,
             CelulaRepository celulaRepository,
             LiderRepository liderRepository,
             PasswordEncoder passwordEncoder
     ) {
+        this.relatorioRepository = relatorioRepository;
+        this.visitanteRepository = visitanteRepository;
+        this.relatorioSemanalRepository = relatorioSemanalRepository;
         this.pastorRepository = pastorRepository;
         this.usuarioRepository = usuarioRepository;
         this.membroRepository = membroRepository;
@@ -80,6 +91,7 @@ public class PastorService {
 
         return pastorRepository.save(pastor);
     }
+
     // =========================
     // DASHBOARD DO PASTOR
     // =========================
@@ -206,35 +218,48 @@ public class PastorService {
     // =========================
     // DASHBOARD COMPLETO
     // =========================
+    // =========================
+// DASHBOARD COMPLETO (REAL)
+// =========================
     public Map<String, Object> gerarDashboardCompleto() {
         Map<String, Object> data = new HashMap<>();
 
-        // 1. Crescimento mensal REAL
+        // 1. Estatísticas de Membros (Real)
+        long totalMembros = membroRepository.countByArquivadoFalse();
+        data.put("totalMembros", totalMembros);
 
-        // 2. Presença por culto (exemplo até implementar)
-        data.put("presencaPorCulto", List.of(85, 78, 92, 88));
-
-        // 3. Status dos membros — REAL!
+        // 2. Status dos membros (Real)
         Map<String, Integer> statusMembros = new HashMap<>();
         statusMembros.put("VERDE", (int) membroRepository.countByStatus(StatusEspiritual.VERDE));
         statusMembros.put("AMARELO", (int) membroRepository.countByStatus(StatusEspiritual.AMARELO));
         statusMembros.put("VERMELHO", (int) membroRepository.countByStatus(StatusEspiritual.VERMELHO));
         data.put("statusMembros", statusMembros);
 
-        // 4. Ranking de células mais saudáveis (top 5 por número de membros)
+        // 3. Dados Consolidados dos Relatórios das Células (REAL!)
+        // Aqui somamos o que todos os líderes digitaram nos relatórios semanais
+        Integer totalConversoes = relatorioSemanalRepository.somarTodasConversoes();
+        Integer totalBatismos = relatorioSemanalRepository.somarTodosBatismos();
+        long totalRelatoriosEnviados = relatorioSemanalRepository.count();
+
+        data.put("conversoesMes", totalConversoes != null ? totalConversoes : 0);
+        data.put("batismos", totalBatismos != null ? totalBatismos : 0);
+        data.put("relatoriosSemana", totalRelatoriosEnviados);
+
+        // 4. Visitantes Cadastrados (Onde o Luiz aparece!)
+        long totalVisitantes = visitanteRepository.count();
+        data.put("novosMembros", totalVisitantes); // No Dashboard do Pastor, os visitantes entram como potencial de novos membros
+
+        // 5. Ranking e Frequência
         data.put("rankingCelulas", calcularRankingCelulas());
 
-        // 5. Dízimos (exemplo até implementar módulo financeiro)
-        data.put("dizimo", Map.of("ouro", 45, "prata", 32, "bronze", 18));
-
-        // 6. Batismos e novos membros (exemplo até implementar)
-        data.put("batismos", 12);
-        data.put("novosMembros", 28);
-        data.put("relatoriosSemana", 8);
+        // Simulação de presença baseada nos relatórios (Presentes / Total Membros)
+        Integer somaPresentes = relatorioSemanalRepository.somarTodosPresentes();
+        double freqGeral = totalMembros > 0 ? (somaPresentes.doubleValue() / totalMembros) * 100 : 0;
+        data.put("frequenciaGeral", Math.round(freqGeral));
 
         return data;
-    }
 
+    }
 
 
     // Método auxiliar para ranking de células
@@ -267,6 +292,7 @@ public class PastorService {
 
         return ranking;
     }
+
     private List<Map<String, Object>> formatarCrescimentoMensal(List<Object[]> rawData, String label) {
         List<Map<String, Object>> resultado = new ArrayList<>();
 
@@ -303,6 +329,7 @@ public class PastorService {
 
         return resultado;
     }
+
     public Lider promoverMembroALider(PromoverLiderDTO dto) {
         Usuario pastorLogado = getPastorLogado();
         if (pastorLogado.getRole() != Role.ROLE_PASTOR) {
@@ -329,6 +356,7 @@ public class PastorService {
 
         return liderRepository.save(lider);
     }
+
     @Transactional
     public Pastor cadastrarPerfilPastor(Long usuarioId, LocalDate dataOrdenacao, String igrejaOrdenacao, boolean pastorPrincipal) {
         Usuario usuario = usuarioRepository.findById(usuarioId)
@@ -403,16 +431,19 @@ public class PastorService {
 
         return pastorRepository.save(pastor);
     }
+
     @Transactional(readOnly = true)
     public List<Pastor> listarTodos() {
         return pastorRepository.findAll();
     }
+
     @Transactional(readOnly = true)
     public Pastor buscarPorId(Long id) {
         return pastorRepository.findById(id)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Pastor com ID " + id + " não encontrado"));
     }
+
     @Transactional(readOnly = true)
     public List<PastorResponseDTO> listarTodosDTO() {
         return pastorRepository.findAll().stream()
@@ -428,6 +459,7 @@ public class PastorService {
                 ))
                 .toList();
     }
+
     @Transactional(readOnly = true)
     public PastorResponseDTO buscarPorIdDTO(Long id) {
         Pastor pastor = pastorRepository.findById(id)
@@ -445,6 +477,76 @@ public class PastorService {
                 pastor.isPastorPrincipal()
         );
     }
+
+    @Transactional(readOnly = true)
+    public List<CelulaStatusDTO> obterStatusCelulas(LocalDate inicio, LocalDate fim) {
+
+        List<Celula> celulas = celulaRepository.findAll();
+
+        return celulas.stream().map(celula -> {
+
+            // 1. Verifica se o relatório foi enviado
+            boolean entregue = relatorioRepository.existeRelatorioNoPeriodo(
+                    celula.getId(), inicio, fim
+            );
+
+            String liderNome = celula.getLider() != null
+                    ? celula.getLider().getNome()
+                    : "Sem Líder";
+
+            // 2. Conta membros da célula
+            int membros = celula.getMembros() != null
+                    ? celula.getMembros().size()
+                    : 0;
+
+            // 3. Conta visitantes **que realmente marcaram presença** via RelatorioSemanal
+            Integer visitantesPresentes = relatorioSemanalRepository
+                    .somarVisitantesPorCelulaNoPeriodo(celula.getId(), inicio, fim);
+
+            if (visitantesPresentes == null) visitantesPresentes = 0;
+
+            // 4. Total de presentes = membros + visitantes presentes
+            int totalPresentes = membros + visitantesPresentes;
+
+
+            return new CelulaStatusDTO(
+                    celula.getId(),
+                    celula.getNome(),
+                    celula.getEndereco(),
+                    celula.getDiaSemana(),
+                    celula.getHorario(),
+                    celula.isCasaDePaz(),
+                    liderNome,
+                    entregue ? "ENTREGUE" : "PENDENTE",
+                    membros,
+                    visitantesPresentes,
+                    totalPresentes
+            );
+
+        }).collect(Collectors.toList());
+    }
+
+
+    @Transactional
+    public void marcarPresencaVisitante(Long visitanteId, LocalDate data) {
+        Visitante visitante = visitanteRepository.findById(visitanteId)
+                .orElseThrow(() -> new RuntimeException("Visitante não encontrado"));
+
+        visitante.setDataPrimeiraVisita(data);
+        visitanteRepository.save(visitante);
+    }
+
+
+    @Transactional
+    public void deletarRelatorioPorId(Long id) {
+        if (!relatorioSemanalRepository.existsById(id)) {
+
+            throw new ResourceNotFoundException("Relatório com ID " + id + " não encontrado");
+        }
+        relatorioSemanalRepository.deleteById(id);
+    }
+
+    // ==================== Outros métodos ====================
 
 
 }

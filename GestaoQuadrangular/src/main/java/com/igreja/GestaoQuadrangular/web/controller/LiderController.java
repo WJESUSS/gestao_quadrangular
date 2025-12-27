@@ -16,6 +16,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/lider")
+@CrossOrigin(origins = "http://localhost:5173")
 @PreAuthorize("hasRole('LIDER')")  // Só líderes acessam esse módulo
 public class LiderController {
 

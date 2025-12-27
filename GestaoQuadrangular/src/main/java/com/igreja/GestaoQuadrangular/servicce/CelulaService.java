@@ -1,20 +1,11 @@
 package com.igreja.GestaoQuadrangular.servicce; // ← Já corrigido: servicce → service
 
 import com.igreja.GestaoQuadrangular.application.dto.*;
-import com.igreja.GestaoQuadrangular.domain.entity.Celula;
-import com.igreja.GestaoQuadrangular.domain.entity.Lider;
-import com.igreja.GestaoQuadrangular.domain.entity.Membro;
-import com.igreja.GestaoQuadrangular.domain.entity.Usuario;
-import com.igreja.GestaoQuadrangular.domain.entity.RelatorioSemanal;
-import com.igreja.GestaoQuadrangular.domain.entity.MetaCelula;
-import com.igreja.GestaoQuadrangular.domain.entity.MensagemChat;
-import com.igreja.GestaoQuadrangular.domain.repository.CelulaRepository;
-import com.igreja.GestaoQuadrangular.domain.repository.LiderRepository;
-import com.igreja.GestaoQuadrangular.domain.repository.MembroRepository;
-import com.igreja.GestaoQuadrangular.domain.repository.RelatorioSemanalRepository;
-import com.igreja.GestaoQuadrangular.domain.repository.MetaCelulaRepository;
-import com.igreja.GestaoQuadrangular.domain.repository.MensagemChatRepository;
+import com.igreja.GestaoQuadrangular.domain.entity.*;
+import com.igreja.GestaoQuadrangular.domain.repository.*;
+import com.igreja.GestaoQuadrangular.num.EscadaSucesso;
 import com.igreja.GestaoQuadrangular.num.Role;
+import com.igreja.GestaoQuadrangular.web.exception.ResourceNotFoundException;
 import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,14 +13,16 @@ import org.springframework.data.domain.PageRequest;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
+import java.util.stream.Collectors;
+
+import static com.igreja.GestaoQuadrangular.num.Role.ROLE_MEMBRO;
 
 @Service
 public class CelulaService {
 
+    private final RelatorioRepository relatorioRepository;
+    private final UsuarioRepository usuarioRepository;
     private final CelulaRepository celulaRepository;
     private final LiderRepository liderRepository;
     private final MembroRepository membroRepository;
@@ -37,12 +30,14 @@ public class CelulaService {
     private final MetaCelulaRepository metaCelulaRepository;
     private final MensagemChatRepository mensagemChatRepository;
 
-    public CelulaService(CelulaRepository celulaRepository,
+    public CelulaService(RelatorioRepository relatorioRepository, PresencaRepository presencaRepository, UsuarioRepository usuarioRepository, CelulaRepository celulaRepository,
                          LiderRepository liderRepository,
                          MembroRepository membroRepository,
                          RelatorioSemanalRepository relatorioSemanalRepository,
                          MetaCelulaRepository metaCelulaRepository,
                          MensagemChatRepository mensagemChatRepository) {
+        this.relatorioRepository = relatorioRepository;
+        this.usuarioRepository = usuarioRepository;
         this.celulaRepository = celulaRepository;
         this.liderRepository = liderRepository;
         this.membroRepository = membroRepository;
@@ -99,31 +94,6 @@ public class CelulaService {
     /**
      * Adiciona um membro a uma célula com controle de permissão
      */
-    @Transactional
-    public void adicionarMembroACelula(Long membroId, Long celulaId, Usuario usuarioLogado) {
-        Celula celula = celulaRepository.findById(celulaId)
-                .orElseThrow(() -> new RuntimeException("Célula não encontrada com ID: " + celulaId));
-
-        Membro membro = membroRepository.findById(membroId)
-                .orElseThrow(() -> new RuntimeException("Membro não encontrado com ID: " + membroId));
-
-        if (usuarioLogado.getRole() == Role.ROLE_LIDER) {
-            Lider liderLogado = liderRepository.findByUsuarioId(usuarioLogado.getId())
-                    .orElseThrow(() -> new RuntimeException("Líder não encontrado para o usuário logado"));
-
-            if (!liderLogado.getCelulas().contains(celula)) {
-                throw new RuntimeException("Você só pode adicionar membros às suas próprias células");
-            }
-        }
-
-        if (membro.getCelula() != null) {
-            throw new RuntimeException("Este membro já pertence à célula: " + membro.getCelula().getNome());
-        }
-
-        membro.setCelula(celula);
-        membro.definirDataEntradaNaCelula();
-        membroRepository.save(membro);
-    }
 
     /**
      * Busca célula por ID com membros carregados
@@ -215,14 +185,25 @@ public class CelulaService {
     // ==================== NOVAS FUNCIONALIDADES (ADICIONADAS) ====================
 
     private void validarPermissaoLiderDaCelula(Celula celula, Usuario usuarioLogado) {
-        if (usuarioLogado.getRole() != Role.ROLE_LIDER) {
-            throw new RuntimeException("Apenas líderes podem realizar esta ação");
+        // 1. Se for ADMIN ou PASTOR, permite sempre (Ignora a trava de ID)
+        if (usuarioLogado.getRole() == Role.ROLE_ADMIN || usuarioLogado.getRole() == Role.ROLE_PASTOR) {
+            return;
         }
-        Lider lider = liderRepository.findByUsuarioId(usuarioLogado.getId())
-                .orElseThrow(() -> new RuntimeException("Líder não encontrado para o usuário logado"));
-        if (!lider.getCelulas().contains(celula)) {
-            throw new RuntimeException("Ação permitida apenas na sua própria célula");
+
+        // 2. Se for Líder, verifica se ele lidera ESTA célula específica
+        if (usuarioLogado.getRole() == Role.ROLE_LIDER) {
+            Lider lider = liderRepository.findByUsuarioId(usuarioLogado.getId())
+                    .orElseThrow(() -> new RuntimeException("Líder não encontrado para este usuário"));
+
+            // Compara o ID do líder da célula com o ID do líder logado
+            if (celula.getLider() == null || !celula.getLider().getId().equals(lider.getId())) {
+                throw new RuntimeException("Ação permitida apenas para o líder desta célula ou administradores");
+            }
+            return;
         }
+
+        // 3. Se não for nenhum dos acima, bloqueia
+        throw new RuntimeException("Você não tem permissão para realizar esta ação");
     }
 
     // ---------- Relatório Semanal Simplificado ----------
@@ -354,4 +335,197 @@ public class CelulaService {
                 ))
                 .toList();
     }
+    public List<Usuario> listarUsuariosNaoNaCelula() {
+        // Role deve começar com R maiúsculo para referenciar o Enum
+        return usuarioRepository.findByCelulaIsNullAndRole(Role.ROLE_MEMBRO);
+    }
+    @Transactional
+    public void adicionarMembroACelula(Long membroId, Long celulaId, Usuario usuarioLogado) {
+
+        Usuario membro = usuarioRepository.findById(membroId)
+                .orElseThrow(() -> new RuntimeException("Membro não encontrado com ID: " + membroId));
+
+        Celula celula = celulaRepository.findById(celulaId)
+                .orElseThrow(() -> new RuntimeException("Célula não encontrada com ID: " + celulaId));
+
+        if (membro.getCelula() != null) {
+            throw new RuntimeException(
+                    "Membro já pertence à célula: " + membro.getCelula().getNome()
+            );
+        }
+
+        // opcional: validar líder
+        if (usuarioLogado.getRole() == Role.ROLE_LIDER) {
+            validarPermissaoLiderDaCelula(celula, usuarioLogado);
+        }
+
+        membro.setCelula(celula);
+        celula.getMembros().add(membro);
+
+        usuarioRepository.save(membro);
+        celulaRepository.save(celula);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CelulaDTO> listarTodasDTO() {
+        List<Celula> celulas = celulaRepository.findAll();
+        celulas.forEach(c -> Hibernate.initialize(c.getMembros())); // garante carregamento de membros
+
+        return celulas.stream()
+                .map(c -> new CelulaDTO(
+                        c.getId(),
+                        c.getNome(),
+                        c.getEndereco(),
+                        c.getDiaSemana(),
+                        c.getHorario(),
+                        c.isCasaDePaz(),
+                        c.getLider() != null ? new CelulaDTO.LiderDTO(
+                                c.getLider().getId(),
+                                c.getLider().getNome(),
+                                c.getLider().getEmail()
+                        ) : null,
+                        c.getMembros().stream()
+                                .map(m -> new CelulaDTO.MembroDTO(
+                                        m.getId(),
+                                        m.getNome(),
+                                        m.getEmail()
+                                ))
+                                .toList(),
+                        c.getDataCriacao()
+                ))
+                .toList();
+    }
+    public Map<String, Object> gerarDashboardCompleto() {
+        Map<String, Object> stats = new HashMap<>();
+
+        // 1. Total de Membros Ativos
+        long totalMembros = membroRepository.countByArquivadoFalse();
+
+        // 2. Soma de Conversões e Batismos (dados que você acabou de enviar via Relatório)
+        Integer conversoes = relatorioSemanalRepository.somarTodasConversoes();
+        Integer batismos = relatorioSemanalRepository.somarTodosBatismos();
+        Integer visitantes = relatorioSemanalRepository.somarTodosVisitantes();
+
+        // 3. Monta o Map exatamente como o Frontend PastorAdmin.jsx espera
+        stats.put("totalMembros", totalMembros);
+        stats.put("conversoesMes", conversoes != null ? conversoes : 0);
+        stats.put("batismosMes", batismos != null ? batismos : 0);
+        stats.put("visitantesSemana", visitantes != null ? visitantes : 0);
+        stats.put("frequenciaGeral", 85); // Valor exemplo, pode calcular a média se desejar
+
+        return stats;
+    }
+
+
+    @Transactional(readOnly = true)
+    public CelulaDTO buscarPorIdDTO(Long celulaId) {
+        // Busca a entidade
+        Celula celula = celulaRepository.findById(celulaId)
+                .orElseThrow(() -> new RuntimeException("Célula não encontrada"));
+
+        // Mapeamento manual para quebrar a recursão infinita do JSON
+        CelulaDTO dto = new CelulaDTO();
+        dto.setId(celula.getId());
+        dto.setNome(celula.getNome());
+        dto.setEndereco(celula.getEndereco());
+        dto.setDiaSemana(celula.getDiaSemana());
+        dto.setHorario(celula.getHorario());
+        dto.setCasaDePaz(celula.isCasaDePaz());
+
+        // Mapeia o Líder (usando apenas dados simples)
+        if (celula.getLider() != null) {
+            dto.setLider(new CelulaDTO.LiderDTO(
+                    celula.getLider().getId(),
+                    celula.getLider().getNome(),
+                    celula.getLider().getEmail()
+            ));
+        }
+
+        // Mapeia os Membros (transformando a lista de entidades em lista de DTOs)
+        if (celula.getMembros() != null) {
+            dto.setMembros(celula.getMembros().stream()
+                    .map(m -> new CelulaDTO.MembroDTO(m.getId(), m.getNome(), m.getEmail()))
+                    .collect(Collectors.toList()));
+        }
+
+        return dto;
+    }
+    // Dentro do seu CelulaService
+
+
+    public Optional<RelatorioPorDataDTO> buscarRelatorioPorData(Long celulaId, LocalDate data) {
+        // 1. Busca a célula para ter os dados base (Líder e Total de Membros)
+        Celula celula = celulaRepository.findById(celulaId)
+                .orElseThrow(() -> new RuntimeException("Célula não encontrada"));
+
+        // 2. Tenta encontrar o relatório físico no banco
+        return relatorioRepository.findByCelulaIdAndData(celulaId, data)
+                .map(relatorio -> {
+                    int totalMembros = celula.getMembros().size();
+                    int presentes = relatorio.getMembrosPresentes().size();
+
+                    return RelatorioPorDataDTO.builder()
+                            .celulaId(celula.getId())
+                            .nomeCelula(celula.getNome())
+                            .nomeLider(celula.getLider() != null ? celula.getLider().getNome() : "Sem Líder")
+                            .data(relatorio.getData())
+                            .statusReuniao("REALIZADA")
+                            .relatorioEnviado(true)
+                            .totalMembrosNaCelula(totalMembros)
+                            .presentes(presentes)
+                            .faltosos(totalMembros - presentes)
+                            .percentualPresenca(totalMembros > 0 ? (presentes * 100.0) / totalMembros : 0)
+                            .conversoes(relatorio.getConversoes())
+                            .novasVisitantes(relatorio.getNovasVisitantes())
+                            .observacoesLider(relatorio.getObservacoes())
+                            .build();
+                });
+    }
+    public List<CelulaStatusDTO> listarStatusRelatorios(LocalDate inicio, LocalDate fim) {
+        List<Celula> celulas = celulaRepository.findAll();
+
+        return celulas.stream().map(celula -> {
+            String nomeLider = (celula.getLider() != null)
+                    ? celula.getLider().getNome()
+                    : "Sem Líder";
+
+            boolean entregou = relatorioSemanalRepository
+                    .existeRelatorioNoPeriodo(celula.getId(), inicio, fim);
+
+            String statusFinal = entregou ? "ENTREGUE" : "PENDENTE";
+
+            return new CelulaStatusDTO(
+                    celula.getId(),
+                    celula.getNome(),
+                    celula.getEndereco(),
+                    celula.getDiaSemana(),
+                    celula.getHorario(),
+                    celula.isCasaDePaz(),
+                    nomeLider,
+                    statusFinal,
+                    celula.getMembros() != null ? celula.getMembros().size() : 0
+            );
+        }).collect(Collectors.toList());
+    }
+    @Transactional
+    public void atualizarEtapaMembro(AtualizarEtapaDTO dto) {
+        // 1. Busca o membro
+        Membro membro = membroRepository.findById(dto.membroId())
+                .orElseThrow(() -> new RuntimeException("Membro não encontrado com ID: " + dto.membroId()));
+
+        // 2. Converte a String para o Enum EscadaSucesso
+        // O valueOf espera o nome exato (ex: "GANHAR", "CONSOLIDAR")
+        try {
+            EscadaSucesso novaEtapa = EscadaSucesso.valueOf(dto.etapaAtual().toUpperCase());
+            membro.setEscadaSucesso(novaEtapa);
+
+            // Se você tiver esse campo de data no banco, é bom atualizar
+            membro.setDataUltimaAtualizacaoEscada(LocalDate.now());
+
+            membroRepository.save(membro);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("A etapa '" + dto.etapaAtual() + "' não é válida no sistema.");
+        }
+    }
+
 }

@@ -1,12 +1,15 @@
 package com.igreja.GestaoQuadrangular.domain.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.HashSet;
 import java.util.Set;
 
 @Entity
+@JsonIgnoreProperties({"membros", "lider"})
 @Table(name = "relatorios_semanais")
 public class RelatorioSemanal {
 
@@ -107,4 +110,5 @@ public class RelatorioSemanal {
     public void setMembrosPresentesIds(Set<Long> membrosPresentesIds) {
         this.membrosPresentesIds = membrosPresentesIds;
     }
+
 }

@@ -14,6 +14,7 @@ import java.time.LocalDate;
 @RestController
 @RequestMapping("/tesouraria")
 @PreAuthorize("hasRole('PASTOR') or hasRole('TESOUREIRO')")
+@CrossOrigin(origins = "http://localhost:5173")
 public class TesourariaController {
 
     private final TesourariaService tesourariaService;

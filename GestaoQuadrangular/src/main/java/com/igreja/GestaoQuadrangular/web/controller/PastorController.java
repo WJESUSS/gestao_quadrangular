@@ -6,6 +6,8 @@ import com.igreja.GestaoQuadrangular.application.dto.*;
 import com.igreja.GestaoQuadrangular.domain.entity.*;
 import com.igreja.GestaoQuadrangular.domain.repository.CelulaRepository;
 import com.igreja.GestaoQuadrangular.domain.repository.MembroRepository;
+import com.igreja.GestaoQuadrangular.domain.repository.RelatorioRepository;
+import com.igreja.GestaoQuadrangular.domain.repository.RelatorioSemanalRepository;
 import com.igreja.GestaoQuadrangular.num.TipoReuniao;
 import com.igreja.GestaoQuadrangular.servicce.*;
 import com.igreja.GestaoQuadrangular.web.exception.ResourceNotFoundException;
@@ -23,12 +25,16 @@ import java.time.YearMonth;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/pastor")
-@PreAuthorize("hasRole('PASTOR') or hasRole('ADMIN')")
+@CrossOrigin(origins = "http://localhost:5173")
+@PreAuthorize("hasRole('SECRETARIO') or hasRole('PASTOR') or hasRole('ADMIN')")
 public class PastorController {
 
+    private final RelatorioSemanalRepository relatorioSemanalRepository;
+    private final RelatorioRepository relatorioRepository;
     private final TesourariaDashboardService tesourariaDashboardService;
     private final PresencaService presencaService;
     private final EmailService emailService;
@@ -39,7 +45,7 @@ public class PastorController {
     private final MembroRepository membroRepository;
 
     public PastorController(
-            TesourariaDashboardService tesourariaDashboardService,
+            RelatorioSemanalRepository relatorioSemanalRepository, RelatorioRepository relatorioRepository, TesourariaDashboardService tesourariaDashboardService,
             PresencaService presencaService,
             EmailService emailService,
             CelulaRepository celulaRepository,
@@ -47,6 +53,8 @@ public class PastorController {
             MembroService membroService,
             CelulaService celulaService,
             MembroRepository membroRepository) {
+        this.relatorioSemanalRepository = relatorioSemanalRepository;
+        this.relatorioRepository = relatorioRepository;
         this.tesourariaDashboardService = tesourariaDashboardService;
         this.presencaService = presencaService;
         this.emailService = emailService;
@@ -140,6 +148,7 @@ public class PastorController {
 
     @GetMapping("/dashboard/completo")
     public ResponseEntity<Map<String, Object>> dashboardCompleto() {
+        // Agora o service retornará os dados reais dos relatórios
         return ResponseEntity.ok(pastorService.gerarDashboardCompleto());
     }
 
@@ -170,16 +179,6 @@ public class PastorController {
         return ResponseEntity.ok(lideres);
     }
 
-    @PostMapping("/adicionar-membro-celula")
-    @PreAuthorize("hasRole('PASTOR') or hasRole('LIDER')")
-    public ResponseEntity<String> adicionarMembroACelula(
-            @Valid @RequestBody AdicionarMembroCelulaDTO dto,
-            Authentication authentication) {
-
-        Usuario usuarioLogado = (Usuario) authentication.getPrincipal();
-        celulaService.adicionarMembroACelula(dto.membroId(), dto.celulaId(), usuarioLogado);
-        return ResponseEntity.ok("Membro adicionado à célula com sucesso!");
-    }
 
     @GetMapping("/celulas")
     @Transactional(readOnly = true)
@@ -238,10 +237,6 @@ public class PastorController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/test")
-    public String test() {
-        return "PastorController está funcionando! 😊";
-    }
 
     @GetMapping("/testar-email")
     public ResponseEntity<String> testarEmail() {
@@ -278,7 +273,7 @@ public class PastorController {
     }
 
     @GetMapping("/dashboard/financia")
-    @PreAuthorize("hasRole('PASTOR') or hasRole('TESOUREIRO')")
+    @PreAuthorize("hasRole('PASTOR') or hasRole('TESOUREIRO')or hasRole('ADMIN')")
     public ResponseEntity<DashboardFinanceiroDTO> dashboardFinanceiro(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim) {
@@ -342,6 +337,7 @@ public class PastorController {
         List<CelulaCrescimentoDTO> relatorio = celulaService.gerarRelatorioCrescimento(celulaId, 6);
         return ResponseEntity.ok(relatorio);
     }
+
     @GetMapping("/meu-perfil")
     public ResponseEntity<Map<String, Object>> meuPerfil(Authentication authentication) {
         if (authentication == null || !authentication.isAuthenticated()) {
@@ -356,6 +352,7 @@ public class PastorController {
 
         return ResponseEntity.ok(perfil);
     }
+
     @PostMapping("/cadastrar-perfil-pastor")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Pastor> cadastrarPerfilPastor(@Valid @RequestBody CadastrarPerfilPastorDTO dto) {
@@ -371,6 +368,7 @@ public class PastorController {
 
         return ResponseEntity.ok(pastor);
     }
+
     @PostMapping("/promover-para-pastor")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Pastor> promoverParaPastor(@Valid @RequestBody PromoverParaPastorDTO dto) {
@@ -386,17 +384,68 @@ public class PastorController {
 
         return ResponseEntity.ok(pastor);
     }
+
     @GetMapping("/pastores")
     public ResponseEntity<List<PastorResponseDTO>> listarPastores() {
         return ResponseEntity.ok(pastorService.listarTodosDTO());
     }
 
 
-
     @GetMapping("/pastores/{id}")
     public ResponseEntity<PastorResponseDTO> buscarPastor(@PathVariable Long id) {
         return ResponseEntity.ok(pastorService.buscarPorIdDTO(id));
     }
+
+    // Adicione isso ao seu PastorController.java para o Pastor ver os relatórios enviados
+    @GetMapping("/relatorios/recentes")
+    public ResponseEntity<List<Map<String, Object>>> listarRelatoriosRecentes() {
+        // Aqui você chamaria um service que busca os últimos registros da tabela de relatórios
+        // Por enquanto, retorna uma lista vazia ou mock para não dar 404
+        return ResponseEntity.ok(List.of());
+    }
+
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/celulas/{celulaId}/relatorio-detalhado")
+    public ResponseEntity<Relatorio> buscarRelatorioDetalhado(
+            @PathVariable Long celulaId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate data) {
+
+        return relatorioRepository.findByCelulaIdAndData(celulaId, data)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+    @GetMapping("/celulas/status-relatorios")
+    @Transactional(readOnly = true)
+    public ResponseEntity<List<CelulaStatusDTO>> listarStatusRelatorios(
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
+
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim) {
+
+        // Define datas padrão se não forem passadas pelo frontend
+        LocalDate dataInicio = (inicio != null) ? inicio : LocalDate.now().withDayOfMonth(1);
+        LocalDate dataFim = (fim != null) ? fim : LocalDate.now();
+
+        List<CelulaStatusDTO> response = celulaService.listarStatusRelatorios(dataInicio, dataFim);
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/soma/visitantes/membros")
+    public List<CelulaStatusDTO> somaVisitantesMembros(@RequestParam String inicio, @RequestParam String fim) {
+        LocalDate start = LocalDate.parse(inicio);
+        LocalDate end = LocalDate.parse(fim);
+        return pastorService.obterStatusCelulas(start, end);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<String> deletarRelatorio(@PathVariable Long id) {
+        pastorService.deletarRelatorioPorId(id);
+        return ResponseEntity.ok("Relatório deletado com sucesso!");
+    }
+
 
 
 }

@@ -7,16 +7,19 @@ import com.igreja.GestaoQuadrangular.domain.entity.MensagemChat;
 import com.igreja.GestaoQuadrangular.domain.entity.Usuario;
 import com.igreja.GestaoQuadrangular.servicce.CelulaService;  // ← Pacote correto: service
 import jakarta.validation.Valid;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/celulas")
+@RequestMapping("/api/celula")
+@CrossOrigin(origins = "http://localhost:5173")
 public class CelulaExtraController {
 
     private final CelulaService celulaService;
@@ -31,17 +34,6 @@ public class CelulaExtraController {
      * POST /api/celulas/{celulaId}/relatorio-semanal
      * Líder envia relatório semanal simplificado
      */
-    @PostMapping("/{celulaId}/relatorio-semanal")
-    @PreAuthorize("hasRole('LIDER')")
-    public ResponseEntity<RelatorioSemanal> salvarRelatorioSemanal(
-            @PathVariable Long celulaId,
-            @Valid @RequestBody RelatorioSemanalCreateDTO dto,
-            @AuthenticationPrincipal Usuario usuarioLogado) {
-
-        dto.setCelulaId(celulaId);
-        RelatorioSemanal relatorio = celulaService.salvarRelatorioSemanal(dto, usuarioLogado);
-        return new ResponseEntity<>(relatorio, HttpStatus.CREATED);
-    }
 
     /**
      * GET /api/celulas/{celulaId}/relatorios-semanais?limite=10

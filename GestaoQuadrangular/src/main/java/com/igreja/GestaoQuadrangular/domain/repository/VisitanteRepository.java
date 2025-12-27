@@ -9,13 +9,11 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-
 @Repository
 public interface VisitanteRepository extends JpaRepository<Visitante, Long> {
 
     Optional<Visitante> findFirstByNomeIgnoreCaseAndTelefone(String nome, String telefone);
 
-    // Mantenha APENAS estes métodos (com o nome correto do campo)
     List<Visitante> findByDataPrimeiraVisitaAfter(LocalDate data);
     List<Visitante> findByDataPrimeiraVisitaBefore(LocalDate data);
     List<Visitante> findByDataPrimeiraVisitaBetween(LocalDate inicio, LocalDate fim);
@@ -27,7 +25,17 @@ public interface VisitanteRepository extends JpaRepository<Visitante, Long> {
     @Query("SELECT COUNT(v) FROM Visitante v WHERE v.dataPrimeiraVisita >= :data")
     long countByDataPrimeiraVisitaAfter(@Param("data") LocalDate data);
 
-    // REMOVA estas duas linhas (elas causam o erro de startup):
-    // List<Visitante> findByDataVisitaAfter(LocalDate trintaDiasAtras);
-    // List<Visitante> findByDataVisitaBefore(LocalDate trintaDiasAtras);
+    @Query("SELECT COUNT(v) FROM Visitante v")
+    Long countTodosVisitantes();
+
+    @Query("SELECT COUNT(v) FROM Visitante v WHERE v.dataPrimeiraVisita >= :umaSemanaAtras")
+    Long countVisitantesRecentes(@Param("umaSemanaAtras") LocalDate umaSemanaAtras);
+
+    // ✅ ÚNICO método de contagem por célula e período
+    int countByCelulaIdAndDataPrimeiraVisitaBetween(
+            Long celulaId,
+            LocalDate inicio,
+            LocalDate fim
+    );
+
 }

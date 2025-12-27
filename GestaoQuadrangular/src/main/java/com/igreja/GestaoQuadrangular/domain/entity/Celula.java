@@ -1,5 +1,6 @@
 package com.igreja.GestaoQuadrangular.domain.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties; // Adicionado
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.HashSet;
@@ -8,6 +9,10 @@ import java.util.Set;
 @Entity
 @Table(name = "celulas")
 public class Celula {
+
+    // CORREÇÃO 1: Removido o campo "private Celula celula" que estava antes do @Id.
+    // Ele criava uma relação da Célula com ela mesma (auto-referência) desnecessária
+    // e estava usando o mesmo nome de coluna "celula_id" que o JPA usa para os membros.
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -28,17 +33,16 @@ public class Celula {
     @Column(name = "casa_de_paz")
     private boolean casaDePaz = false;
 
-    // Campo para registrar quando a célula foi criada
     @Column(name = "data_criacao", updatable = false)
     private LocalDateTime dataCriacao;
 
-    // Campo boolean para controlar alerta de multiplicação
-    // Usando Boolean (wrapper) para permitir null no banco durante migrações
     @Column(name = "alerta_multiplicacao_enviado")
     private Boolean alertaMultiplicacaoEnviado = false;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "lider_id", nullable = false)
+    // CORREÇÃO 2: Evita erro de Proxy do Hibernate ao serializar para JSON
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Lider lider;
 
     @OneToMany(
@@ -47,11 +51,11 @@ public class Celula {
             orphanRemoval = true,
             fetch = FetchType.LAZY
     )
+    // CORREÇÃO 3: IMPORTANTE! Evita o loop infinito (Recursão)
+    // Impede que o JSON tente carregar: Celula -> Membro -> Celula -> Membro...
+    @JsonIgnoreProperties("celula")
     private Set<Membro> membros = new HashSet<>();
 
-    // ================================================
-    // Preenchimento automático da data de criação
-    // ================================================
     @PrePersist
     protected void onCreate() {
         if (this.dataCriacao == null) {
@@ -117,7 +121,6 @@ public class Celula {
         this.dataCriacao = dataCriacao;
     }
 
-    // Métodos para o alerta de multiplicação
     public boolean isAlertaMultiplicacaoEnviado() {
         return alertaMultiplicacaoEnviado != null && alertaMultiplicacaoEnviado;
     }
@@ -130,7 +133,6 @@ public class Celula {
         return alertaMultiplicacaoEnviado;
     }
 
-    // Métodos auxiliares úteis
     public void marcarAlertaEnviado() {
         this.alertaMultiplicacaoEnviado = true;
     }
@@ -158,7 +160,6 @@ public class Celula {
         }
     }
 
-    // Métodos auxiliares para gerenciar membros
     public void adicionarMembro(Membro membro) {
         if (membro == null) return;
         membros.add(membro);
@@ -171,7 +172,6 @@ public class Celula {
         membro.setCelula(null);
     }
 
-    // Quantidade de membros (útil em relatórios)
     public int getQuantidadeMembros() {
         return membros.size();
     }
@@ -184,7 +184,7 @@ public class Celula {
                 ", diaSemana='" + diaSemana + '\'' +
                 ", horario='" + horario + '\'' +
                 ", casaDePaz=" + casaDePaz +
-                ", qtdMembros=" + membros.size() +
+                ", qtdMembros=" + (membros != null ? membros.size() : 0) +
                 ", dataCriacao=" + dataCriacao +
                 ", alertaMultiplicacaoEnviado=" + alertaMultiplicacaoEnviado +
                 '}';

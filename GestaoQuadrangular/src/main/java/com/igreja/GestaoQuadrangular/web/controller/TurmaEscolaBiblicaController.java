@@ -15,6 +15,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/turmas")
+@CrossOrigin(origins = "http://localhost:5173")
 public class TurmaEscolaBiblicaController {
 
     private final EscolaBiblicaService escolaBiblicaService;

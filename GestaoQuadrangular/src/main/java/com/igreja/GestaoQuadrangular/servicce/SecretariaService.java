@@ -40,8 +40,9 @@ public class SecretariaService {
         return baos.toByteArray();
     }
 
-    // Método para listas inteligentes (ex: aniversariantes do mês)
     public List<Membro> listarAniversariantesMes(int mes) {
-        return membroRepository.findByDataNascimentoMonth(mes); // crie query no repo
+        // Aqui você precisa implementar a query no MembroRepository:
+        // Exemplo: findByDataNascimentoMonth(mes)
+        return membroRepository.findByDataNascimentoMonth(mes);
     }
 }

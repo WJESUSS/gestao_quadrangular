@@ -1,11 +1,8 @@
 package com.igreja.GestaoQuadrangular.servicce;
 
 import com.igreja.GestaoQuadrangular.application.dto.MembroResponseDTO;
-import com.igreja.GestaoQuadrangular.domain.entity.Celula;
-import com.igreja.GestaoQuadrangular.domain.entity.Lider;
-import com.igreja.GestaoQuadrangular.domain.entity.Membro;
-import com.igreja.GestaoQuadrangular.domain.entity.Presenca;
-import com.igreja.GestaoQuadrangular.domain.entity.Usuario;
+import com.igreja.GestaoQuadrangular.application.dto.RelatorioSemanalDTO;
+import com.igreja.GestaoQuadrangular.domain.entity.*;
 import com.igreja.GestaoQuadrangular.domain.repository.*;
 import com.igreja.GestaoQuadrangular.num.StatusEspiritual;
 import com.igreja.GestaoQuadrangular.num.TipoReuniao;
@@ -179,6 +176,8 @@ public class LiderService {
 
                 presencaRepository.save(presenca);
             }
+
         }
+
     }
 }

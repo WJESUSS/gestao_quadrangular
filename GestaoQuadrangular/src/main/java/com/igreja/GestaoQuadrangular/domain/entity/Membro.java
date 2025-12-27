@@ -21,8 +21,10 @@ import java.util.Set;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Inheritance(strategy = InheritanceType.JOINED)
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Membro {
+
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,6 +38,182 @@ public class Membro {
 
     @Column(unique = true, length = 255)
     private String email;
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getNome() {
+        return nome;
+    }
+
+    public void setNome(String nome) {
+        this.nome = nome;
+    }
+
+    public String getTelefone() {
+        return telefone;
+    }
+
+    public void setTelefone(String telefone) {
+        this.telefone = telefone;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public void setArquivado(boolean arquivado) {
+        this.arquivado = arquivado;
+    }
+
+    public int getFaltasConsecutivas() {
+        return faltasConsecutivas;
+    }
+
+    public void setFaltasConsecutivas(int faltasConsecutivas) {
+        this.faltasConsecutivas = faltasConsecutivas;
+    }
+
+    public LocalDate getDataNascimento() {
+        return dataNascimento;
+    }
+
+    public void setDataNascimento(LocalDate dataNascimento) {
+        this.dataNascimento = dataNascimento;
+    }
+
+    public StatusEspiritual getStatus() {
+        return status;
+    }
+
+    public void setStatus(StatusEspiritual status) {
+        this.status = status;
+    }
+
+    public String getDocumentos() {
+        return documentos;
+    }
+
+    public void setDocumentos(String documentos) {
+        this.documentos = documentos;
+    }
+
+    public EscadaSucesso getEscadaSucesso() {
+        return escadaSucesso;
+    }
+
+    public LocalDate getDataUltimaAtualizacaoEscada() {
+        return dataUltimaAtualizacaoEscada;
+    }
+
+    public void setDataUltimaAtualizacaoEscada(LocalDate dataUltimaAtualizacaoEscada) {
+        this.dataUltimaAtualizacaoEscada = dataUltimaAtualizacaoEscada;
+    }
+
+    public String getObservacaoDiscipulado() {
+        return observacaoDiscipulado;
+    }
+
+    public void setObservacaoDiscipulado(String observacaoDiscipulado) {
+        this.observacaoDiscipulado = observacaoDiscipulado;
+    }
+
+    public String getFotoUrl() {
+        return fotoUrl;
+    }
+
+    public void setFotoUrl(String fotoUrl) {
+        this.fotoUrl = fotoUrl;
+    }
+
+    public LocalDate getDataEntradaCelula() {
+        return dataEntradaCelula;
+    }
+
+    public void setDataEntradaCelula(LocalDate dataEntradaCelula) {
+        this.dataEntradaCelula = dataEntradaCelula;
+    }
+
+    public LocalDate getDataBatismo() {
+        return dataBatismo;
+    }
+
+    public void setDataBatismo(LocalDate dataBatismo) {
+        this.dataBatismo = dataBatismo;
+    }
+
+    public Boolean getSobDisciplina() {
+        return sobDisciplina;
+    }
+
+    public void setSobDisciplina(Boolean sobDisciplina) {
+        this.sobDisciplina = sobDisciplina;
+    }
+
+    public Celula getCelula() {
+        return celula;
+    }
+
+    public void setCelula(Celula celula) {
+        this.celula = celula;
+    }
+
+    public Boolean getAtivo() {
+        return ativo;
+    }
+
+    public void setAtivo(Boolean ativo) {
+        this.ativo = ativo;
+    }
+
+    public LocalDate getDataUltimaPresenca() {
+        return dataUltimaPresenca;
+    }
+
+    public void setDataUltimaPresenca(LocalDate dataUltimaPresenca) {
+        this.dataUltimaPresenca = dataUltimaPresenca;
+    }
+
+    public Set<TurmaEscolaBiblica> getTurmasInscritas() {
+        return turmasInscritas;
+    }
+
+    public void setTurmasInscritas(Set<TurmaEscolaBiblica> turmasInscritas) {
+        this.turmasInscritas = turmasInscritas;
+    }
+
+    public List<HistoricoMembro> getHistorico() {
+        return historico;
+    }
+
+    public void setHistorico(List<HistoricoMembro> historico) {
+        this.historico = historico;
+    }
+
+    public Membro getMae() {
+        return mae;
+    }
+
+    public void setMae(Membro mae) {
+        this.mae = mae;
+    }
+
+    public Membro getPai() {
+        return pai;
+    }
+
+    public void setPai(Membro pai) {
+        this.pai = pai;
+    }
 
     @Column(nullable = false)
     private boolean arquivado = false; // primitivo com valor padrão

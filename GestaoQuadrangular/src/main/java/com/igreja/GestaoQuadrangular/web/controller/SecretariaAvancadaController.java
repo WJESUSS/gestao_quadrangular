@@ -17,7 +17,9 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/secretaria/avancado")
-@PreAuthorize("hasRole('SECRETARIA') or hasRole('PASTOR')")
+@CrossOrigin(origins = "http://localhost:5173")
+@PreAuthorize("hasRole('SECRETARIA') or hasRole('PASTOR') or hasRole('ADMIN')")
+
 public class SecretariaAvancadaController {
 
     private final TransferenciaRepository transferenciaRepository;

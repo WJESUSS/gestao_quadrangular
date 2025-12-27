@@ -1,4 +1,4 @@
-package com.igreja.GestaoQuadrangular.web.controller; // ajuste o package conforme o seu projeto
+package com.igreja.GestaoQuadrangular.web.controller;
 
 import com.igreja.GestaoQuadrangular.application.dto.VisitanteResponseDTO;
 import com.igreja.GestaoQuadrangular.domain.entity.Membro;
@@ -7,20 +7,20 @@ import com.igreja.GestaoQuadrangular.servicce.VisitanteService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import jakarta.validation.Valid;
-import java.time.LocalDate;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/visitantes")
+@CrossOrigin(origins = "http://localhost:5173")
 @RequiredArgsConstructor
 public class VisitanteController {
 
     private final VisitanteService visitanteService;
 
-    // ==================== DTO para cadastro ====================
+    // ==================== DTO ====================
     public record CadastrarVisitanteRequest(
             String nome,
             String telefone,
@@ -31,10 +31,10 @@ public class VisitanteController {
             String evento
     ) {}
 
-    // ==================== 1. CADASTRAR VISITANTE ====================
+    // ==================== CADASTRAR VISITANTE ====================
     @PostMapping
     public ResponseEntity<VisitanteResponseDTO> cadastrarVisitante(
-            @Valid @RequestBody CadastrarVisitanteRequest request) {
+            @RequestBody CadastrarVisitanteRequest request) {
 
         Visitante visitante = visitanteService.cadastrarVisitante(
                 request.nome(),
@@ -51,36 +51,32 @@ public class VisitanteController {
                 .body(VisitanteResponseDTO.fromEntity(visitante));
     }
 
-
-    // ==================== 2. CONVERTER VISITANTE EM MEMBRO ====================
+    // ==================== CONVERTER EM MEMBRO ====================
+    @PreAuthorize("hasRole('LIDER') or hasRole('PASTOR') or hasRole('ADMIN')")
     @PostMapping("/{id}/converter-membro")
     public ResponseEntity<Membro> converterParaMembro(@PathVariable Long id) {
-        Membro membro = visitanteService.converterParaMembro(id);
-        return ResponseEntity.ok(membro);
+        return ResponseEntity.ok(visitanteService.converterParaMembro(id));
     }
 
-    // ==================== OPCIONAL: MARCAR NOVA VISITA ====================
+    // ==================== NOVA VISITA ====================
+    @PreAuthorize("hasRole('LIDER') or hasRole('PASTOR') or hasRole('ADMIN')")
     @PostMapping("/{id}/nova-visita")
     public ResponseEntity<Void> registrarNovaVisita(@PathVariable Long id) {
         visitanteService.registrarNovaVisita(id);
         return ResponseEntity.ok().build();
     }
 
-    // ==================== OPCIONAL: RELATÓRIOS ====================
-    @GetMapping("/relatorio/ultimos-30-dias")
-    public ResponseEntity<Long> totalVisitantesUltimos30Dias() {
-        return ResponseEntity.ok(visitanteService.totalVisitantesUltimos30Dias());
-    }
-
-    @GetMapping("/relatorio/total-convertidos")
-    public ResponseEntity<Long> totalConvertidos() {
-        return ResponseEntity.ok(visitanteService.totalConvertidos());
-    }
-    // ==================== LISTAR TODOS OS VISITANTES ====================
+    // ==================== LISTAR ====================
+    @PreAuthorize("hasRole('LIDER') or hasRole('PASTOR') or hasRole('ADMIN')")
     @GetMapping("/lista")
     public ResponseEntity<List<VisitanteResponseDTO>> listarTodos() {
         return ResponseEntity.ok(visitanteService.listarTodos());
     }
 
+    @PreAuthorize("hasRole('LIDER') or hasRole('PASTOR') or hasRole('ADMIN')")
+    @GetMapping("/celula/{celulaId}")
+    public ResponseEntity<List<VisitanteResponseDTO>> listarPorCelula(@PathVariable Long celulaId) {
+        return ResponseEntity.ok(visitanteService.listarPorCelula(celulaId));
+    }
 
 }
